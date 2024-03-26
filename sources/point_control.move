@@ -21,7 +21,8 @@ module point_addr::point_control {
         points: u64,
         operator: address,
         timestamp: u64,
-        owner: address
+        owner: address,
+        coin: Coin<AptosCoin>,
     }
 
     public entry fun initialize(owner_admin: &signer, operator: address, fee: u64) {
@@ -35,7 +36,8 @@ module point_addr::point_control {
             points: 0,
             owner: addr,
             operator: operator,
-            timestamp: 0
+            timestamp: 0,
+            coin: coin::zero<AptosCoin>()
         });
     }
 
@@ -80,16 +82,15 @@ module point_addr::point_control {
 
         assert_is_initialized();
         assert_is_operator(addr);
-        
         let point = borrow_global_mut<Point>(@point_addr);
-
         assert!(coin::balance<AptosCoin>(addr) >= point.fee, ERR_INSUFFICIENT_BALANCE);
 
         let coin = coin::withdraw<AptosCoin>(acc, point.fee);
-        coin::deposit(addr, coin);
-        // let cur_timestamp = timestamp::now_microseconds();
-        // assert!(point.timestamp + 24 * 60 * 60 * 1000 < cur_timestamp , ERR_LOCKED_PERIOD);
+        coin::deposit(point.owner, coin);
+        let cur_timestamp = timestamp::now_microseconds();
+        assert!(point.timestamp + 24 * 60 * 60 * 1000 < cur_timestamp , ERR_LOCKED_PERIOD);
 
+        *(&mut point.timestamp) = cur_timestamp;
         *(&mut point.points) = point.points + 1;
     }
 
@@ -97,6 +98,6 @@ module point_addr::point_control {
     public fun point(): u64 acquires Point {
         assert_is_initialized();
 
-        borrow_global<Point>(@bridge_addr).point
+        borrow_global<Point>(@point_addr).points
     }
 }
